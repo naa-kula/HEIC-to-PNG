@@ -54,7 +54,7 @@
 
   <!-- Load the heic2any library -->
   <script src="https://unpkg.com/heic2any@0.3.0/dist/heic2any.min.js"></script>
-  <!-- Load JSZip library -->
+  <!-- Load the JSZip library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     const convertBtn = document.getElementById("convert-btn");
@@ -67,20 +67,28 @@
         messageDiv.textContent = "Please select at least one HEIC file to convert.";
         return;
       }
-
       messageDiv.innerHTML = "Starting conversion...<br>";
       const zip = new JSZip();
 
-      // Use Promise.all to convert files concurrently
+      // Process files concurrently
       const conversionPromises = Array.from(files).map(async (file) => {
         messageDiv.innerHTML += `Converting ${file.name}...<br>`;
         try {
-          const convertedBlob = await heic2any({
+          const conversionResult = await heic2any({
             blob: file,
             toType: "image/png"
           });
+          // Create a new filename with a .png extension
           const newFileName = file.name.replace(/\.heic$/i, ".png");
-          zip.file(newFileName, convertedBlob);
+          // Check if the conversion returned an array (in the case of animated HEIC) or a single Blob
+          if (Array.isArray(conversionResult)) {
+            conversionResult.forEach((blob, i) => {
+              const fileName = newFileName.replace('.png', `_${i + 1}.png`);
+              zip.file(fileName, blob);
+            });
+          } else {
+            zip.file(newFileName, conversionResult);
+          }
           messageDiv.innerHTML += `${file.name} conversion complete!<br>`;
         } catch (error) {
           console.error("Error converting", file.name, error);
@@ -88,11 +96,11 @@
         }
       });
 
-      // Once all conversions are done, generate and download the ZIP
+      // Once all conversions finish, generate the ZIP file and trigger the download
       Promise.all(conversionPromises).then(() => {
         messageDiv.innerHTML += "Generating ZIP file...<br>";
         zip.generateAsync({ type: "blob" })
-          .then(function(content) {
+          .then((content) => {
             const url = URL.createObjectURL(content);
             const link = document.createElement("a");
             link.href = url;
@@ -102,7 +110,7 @@
             document.body.removeChild(link);
             messageDiv.innerHTML += "ZIP file download started.";
           })
-          .catch(function (err) {
+          .catch((err) => {
             console.error("Error generating ZIP", err);
             messageDiv.innerHTML += "Error generating ZIP file.<br>";
           });
