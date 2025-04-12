@@ -13,9 +13,7 @@
       flex-direction: column;
       align-items: center;
     }
-    h1 {
-      color: #333;
-    }
+    h1 { color: #333; }
     .converter {
       background: #fff;
       padding: 2rem;
@@ -25,9 +23,7 @@
       width: 100%;
       text-align: center;
     }
-    input[type="file"] {
-      margin: 1rem 0;
-    }
+    input[type="file"] { margin: 1rem 0; }
     button {
       background: #007BFF;
       color: #fff;
@@ -36,9 +32,7 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    button:hover {
-      background: #0056b3;
-    }
+    button:hover { background: #0056b3; }
     #message {
       margin-top: 1rem;
       font-style: italic;
@@ -52,16 +46,15 @@
 <body>
   <div class="converter">
     <h1>HEIC to PNG Converter</h1>
-    <!-- Allow multiple file selection -->
     <input type="file" id="heic-input" accept=".heic, .HEIC, image/heic, image/heif" multiple>
     <br>
     <button id="convert-btn">Convert & Download ZIP</button>
     <div id="message"></div>
   </div>
 
-  <!-- Include heic2any library -->
+  <!-- Load the heic2any library -->
   <script src="https://unpkg.com/heic2any@0.3.0/dist/heic2any.min.js"></script>
-  <!-- Include JSZip library -->
+  <!-- Load JSZip library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     const convertBtn = document.getElementById("convert-btn");
@@ -76,48 +69,44 @@
       }
 
       messageDiv.innerHTML = "Starting conversion...<br>";
-      
-      // Create a new JSZip instance to accumulate the converted files.
       const zip = new JSZip();
 
-      for (const file of files) {
+      // Use Promise.all to convert files concurrently
+      const conversionPromises = Array.from(files).map(async (file) => {
         messageDiv.innerHTML += `Converting ${file.name}...<br>`;
         try {
           const convertedBlob = await heic2any({
             blob: file,
             toType: "image/png"
           });
-          
-          // Generate a new filename replacing the extension with .png
           const newFileName = file.name.replace(/\.heic$/i, ".png");
-          // Add the converted PNG blob to the zip file
           zip.file(newFileName, convertedBlob);
-
           messageDiv.innerHTML += `${file.name} conversion complete!<br>`;
         } catch (error) {
           console.error("Error converting", file.name, error);
           messageDiv.innerHTML += `Error converting ${file.name}.<br>`;
         }
-      }
+      });
 
-      messageDiv.innerHTML += "Generating ZIP file...<br>";
-
-      // Generate the ZIP archive and trigger the download automatically
-      zip.generateAsync({ type: "blob" })
-        .then(function(content) {
-          const url = URL.createObjectURL(content);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = "converted_files.zip";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          messageDiv.innerHTML += "ZIP file download started.";
-        })
-        .catch(function (err) {
-          console.error("Error generating ZIP", err);
-          messageDiv.innerHTML += "Error generating ZIP file.<br>";
-        });
+      // Once all conversions are done, generate and download the ZIP
+      Promise.all(conversionPromises).then(() => {
+        messageDiv.innerHTML += "Generating ZIP file...<br>";
+        zip.generateAsync({ type: "blob" })
+          .then(function(content) {
+            const url = URL.createObjectURL(content);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "converted_files.zip";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            messageDiv.innerHTML += "ZIP file download started.";
+          })
+          .catch(function (err) {
+            console.error("Error generating ZIP", err);
+            messageDiv.innerHTML += "Error generating ZIP file.<br>";
+          });
+      });
     });
   </script>
 </body>
