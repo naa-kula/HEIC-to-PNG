@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>HEIC to PNG Converter (ZIP Download)</title>
+  <title>HEIC to PNG Converter (Individual Downloads)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,7 +13,9 @@
       flex-direction: column;
       align-items: center;
     }
-    h1 { color: #333; }
+    h1 {
+      color: #333;
+    }
     .converter {
       background: #fff;
       padding: 2rem;
@@ -23,7 +25,9 @@
       width: 100%;
       text-align: center;
     }
-    input[type="file"] { margin: 1rem 0; }
+    input[type="file"] {
+      margin: 1rem 0;
+    }
     button {
       background: #007BFF;
       color: #fff;
@@ -32,7 +36,9 @@
       border-radius: 4px;
       cursor: pointer;
     }
-    button:hover { background: #0056b3; }
+    button:hover {
+      background: #0056b3;
+    }
     #message {
       margin-top: 1rem;
       font-style: italic;
@@ -48,14 +54,12 @@
     <h1>HEIC to PNG Converter</h1>
     <input type="file" id="heic-input" accept=".heic, .HEIC, image/heic, image/heif" multiple>
     <br>
-    <button id="convert-btn">Convert & Download ZIP</button>
+    <button id="convert-btn">Convert & Download Files</button>
     <div id="message"></div>
   </div>
 
   <!-- Load the heic2any library -->
   <script src="https://unpkg.com/heic2any@0.3.0/dist/heic2any.min.js"></script>
-  <!-- Load the JSZip library -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     const convertBtn = document.getElementById("convert-btn");
     const fileInput = document.getElementById("heic-input");
@@ -67,55 +71,52 @@
         messageDiv.textContent = "Please select at least one HEIC file to convert.";
         return;
       }
-      messageDiv.innerHTML = "Starting conversion...<br>";
-      const zip = new JSZip();
 
-      // Process files concurrently
-      const conversionPromises = Array.from(files).map(async (file) => {
+      messageDiv.innerHTML = "Starting conversion...<br>";
+
+      // Process each file one by one
+      for (const file of files) {
         messageDiv.innerHTML += `Converting ${file.name}...<br>`;
         try {
           const conversionResult = await heic2any({
             blob: file,
             toType: "image/png"
           });
-          // Create a new filename with a .png extension
+          
+          // Generate a new file name (if converting multiple images, handle animated HEICs)
           const newFileName = file.name.replace(/\.heic$/i, ".png");
-          // Check if the conversion returned an array (in the case of animated HEIC) or a single Blob
+          
+          // If result is an array (animated HEIC), then iterate over each part
           if (Array.isArray(conversionResult)) {
             conversionResult.forEach((blob, i) => {
-              const fileName = newFileName.replace('.png', `_${i + 1}.png`);
-              zip.file(fileName, blob);
+              const partFileName = newFileName.replace('.png', `_${i+1}.png`);
+              triggerDownload(blob, partFileName);
             });
           } else {
-            zip.file(newFileName, conversionResult);
+            triggerDownload(conversionResult, newFileName);
           }
-          messageDiv.innerHTML += `${file.name} conversion complete!<br>`;
+
+          messageDiv.innerHTML += `${file.name} conversion complete! Download initiated.<br>`;
         } catch (error) {
           console.error("Error converting", file.name, error);
           messageDiv.innerHTML += `Error converting ${file.name}.<br>`;
         }
-      });
-
-      // Once all conversions finish, generate the ZIP file and trigger the download
-      Promise.all(conversionPromises).then(() => {
-        messageDiv.innerHTML += "Generating ZIP file...<br>";
-        zip.generateAsync({ type: "blob" })
-          .then((content) => {
-            const url = URL.createObjectURL(content);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = "converted_files.zip";
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            messageDiv.innerHTML += "ZIP file download started.";
-          })
-          .catch((err) => {
-            console.error("Error generating ZIP", err);
-            messageDiv.innerHTML += "Error generating ZIP file.<br>";
-          });
-      });
+      }
     });
+
+    // Function to trigger the automatic download of a blob file
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      // Append the link, trigger the download, then remove the link.
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      // Free up memory by revoking the object URL
+      URL.revokeObjectURL(url);
+    }
   </script>
 </body>
 </html>
